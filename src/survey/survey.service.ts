@@ -1,6 +1,6 @@
 import { Body, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Survey } from './survey.entity';
+import { Survey, TextQuestion } from './survey.entity';
 import { CreateSurveyDto } from '../validation/dto';
 import { Repository } from 'typeorm';
 
@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 export class SurveyService {
   constructor(
     @InjectRepository(Survey)
-      private surveyRepository: Repository<CreateSurveyDto>,
+      private surveyRepository: Repository<Survey>,
   ) {}
 
   create(survey: CreateSurveyDto): Promise<CreateSurveyDto> {
@@ -17,8 +17,17 @@ export class SurveyService {
     );
   }
 
-  findAll(): Promise<CreateSurveyDto[]> {
-    return this.surveyRepository.find();
+  findAll(): Promise<Survey[]> {
+    return this.surveyRepository.find({
+      relations: ['textQuestions', 'multipleQuestions'],
+    });  
+  }
+
+  findOne(id: number): Promise<Survey> {
+    return this.surveyRepository.findOne({
+      where: {id: id},
+      relations: ['textQuestions', 'multipleQuestions'],
+    });  
   }
 
   update(id: string, data: CreateSurveyDto): Promise<any> {

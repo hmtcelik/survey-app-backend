@@ -3,27 +3,32 @@ import { Request } from 'express';
 import { SurveyService } from './survey.service';
 import { CreateSurveyDto } from '../validation/dto';
 import { BaseInterceptor } from '../app.interceptor';
+import { Survey } from './survey.entity';
 
 @UseInterceptors(BaseInterceptor)
 @Controller('survey')
 export class SurveyController {
   constructor(private surveyService: SurveyService) {}
+  
+  @Get()
+  async findAll(@Req() request: Request) {
+      const surveys: Survey[] = await this.surveyService.findAll()
+      return surveys
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: number, @Req() request: Request) {
+      const survey: Survey = await this.surveyService.findOne(id)
+      return survey
+  }
 
   @Post()
   async create(@Body() createSurveyDto: CreateSurveyDto) {
-      console.log(createSurveyDto);
-      
-      const survey = await this.surveyService.create(createSurveyDto);
+        const survey = await this.surveyService.create(createSurveyDto);
       if(!survey) {
         return "error in creating survey"
       }
         return "survey created successfully"
-  }
-
-  @Get()
-  async findAll(@Req() request: Request) {
-      const surveys: Array<CreateSurveyDto> = await this.surveyService.findAll()
-      return surveys
   }
 
   @Put(':id')
@@ -45,4 +50,5 @@ export class SurveyController {
       await this.surveyService.delete(id)
       return "survey deleted"
   }
+
 }
