@@ -1,12 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UseInterceptors } from '@nestjs/common';
 import { Request } from 'express';
-import { SurveyService } from './survey.service';
-import { CreateSurveyDto } from '../validation/dto';
+import { SurveyService, TextQuestionService } from './survey.service';
+import { CreateSurveyDto, CreateTextQuestionDto } from '../validation/dto';
 import { BaseInterceptor } from '../app.interceptor';
-import { Survey } from './survey.entity';
+import { Survey, TextQuestion } from './survey.entity';
 
 @UseInterceptors(BaseInterceptor)
-@Controller('survey')
+@Controller()
 export class SurveyController {
   constructor(private surveyService: SurveyService) {}
   
@@ -49,6 +49,28 @@ export class SurveyController {
   async remove(@Param('id') id: string) {
       await this.surveyService.delete(id)
       return "survey deleted"
+  }
+
+}
+
+@UseInterceptors(BaseInterceptor)
+@Controller('question')
+export class QuestionController {
+  constructor(private textQuestionService: TextQuestionService) {}
+  
+  @Get(':surveyId')
+  async getAllBySurveyId(@Param('surveyId') surveyId:number, @Req() request: Request) {
+      const textQuestions: TextQuestion[] = await this.textQuestionService.findAllBySurvey(surveyId)
+      return textQuestions
+  }
+
+  @Post('text')
+  async createTextQuestion(@Body() createTextQuestionDto: CreateTextQuestionDto) {
+        const textQuestion = await this.textQuestionService.create(createTextQuestionDto);
+      if(!textQuestion) {
+        return "error in creating textQuestion"
+      }
+        return "textQuestion created successfully"
   }
 
 }

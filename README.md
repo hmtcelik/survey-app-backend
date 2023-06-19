@@ -6,5 +6,6 @@ survey app backend
 todo:
 
 - [x] survey model
+- [ ] quest models (%50)
 - [ ] jwt auth
-- [ ] quest models
+- [ ] base exception response

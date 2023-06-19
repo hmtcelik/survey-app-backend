@@ -1,7 +1,7 @@
-import { Body, Injectable } from '@nestjs/common';
+import { BadRequestException, Body, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Survey, TextQuestion } from './survey.entity';
-import { CreateSurveyDto } from '../validation/dto';
+import { MultipleChoiceQuestion, QuestionChoice, Survey, TextQuestion } from './survey.entity';
+import { CreateSurveyDto, CreateTextQuestionDto, MultipleChoiceQuestionDto } from '../validation/dto';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -18,9 +18,7 @@ export class SurveyService {
   }
 
   findAll(): Promise<Survey[]> {
-    return this.surveyRepository.find({
-      relations: ['textQuestions', 'multipleQuestions'],
-    });  
+    return this.surveyRepository.find();  
   }
 
   findOne(id: number): Promise<Survey> {
@@ -68,5 +66,93 @@ export class SurveyService {
       .from(Survey)
       .where('id = :id', { id })
       .execute();
+  }
+}
+
+
+@Injectable()
+export class QuestionService {
+  constructor(
+    @InjectRepository(MultipleChoiceQuestion)
+    private multipleChoiceRepository: Repository<MultipleChoiceQuestion>,
+
+    @InjectRepository(QuestionChoice)
+    private questionChoiceRepository: Repository<QuestionChoice>,
+
+    @InjectRepository(TextQuestion)
+    private textQuestionRepository: Repository<TextQuestion>,
+
+    @InjectRepository(Survey)
+    private surveyRepository: Repository<Survey>,
+  ) {}
+
+  async createText(question: CreateTextQuestionDto): Promise<TextQuestion> {
+    const survey = await this.surveyRepository.findOne({where: {id:question.surveyId}});
+    if (!survey) {
+      throw new NotFoundException(`Survey with ID ${question.surveyId} not found.`);
+    }
+
+    // check if index already exist in this survey
+    const checkIndexText = await this.textQuestionRepository.findOne({where: {survey:survey, index:question.index}});
+    const checkIndexMultipleChoice = await this.multipleChoiceRepository.findOne({where: {survey:survey, index:question.index}});
+    if (checkIndexMultipleChoice || checkIndexText) {
+      throw new BadRequestException(`The given index already exist.`);
+    }
+
+    const textQuestion = this.textQuestionRepository.create({
+      index: question.index,
+      question: question.question,
+      survey: survey,
+    });
+
+    return this.textQuestionRepository.save(textQuestion);
+  }
+
+  // async createMultpleChoice(question: MultipleChoiceQuestionDto): Promise<MultipleChoiceQuestion> {
+  //   const survey = await this.surveyRepository.findOne({where: {id:question.surveyId}});
+  //   if (!survey) {
+  //     throw new NotFoundException(`Survey with ID ${question.surveyId} not found.`);
+  //   }
+
+  //   // check if index already exist in this survey
+  //   const checkIndexText = await this.textQuestionRepository.findOne({where: {survey:survey, index:question.index}});
+  //   const checkIndexMultipleChoice = await this.multipleChoiceRepository.findOne({where: {survey:survey, index:question.index}});
+  //   if (checkIndexMultipleChoice || checkIndexText) {
+  //     throw new BadRequestException(`The given index already exist.`);
+  //   }
+
+  //   const multipleChoice = this.multipleChoiceRepository.create({
+  //     index: question.index,
+  //     question: question.question,
+  //     survey: survey,
+  //     choices: []
+  //   });
+
+  //   const savedQuestion = this.multipleChoiceRepository.save(multipleChoice);
+
+  //   var questionChoices: QuestionChoice[] = [] 
+  //   for (const questionChoice of question.choices){
+  //     const newChoice = this.questionChoiceRepository.create(
+  //       {
+  //         choice: questionChoice.choice,
+  //         question: savedQuestion
+  //       }
+  //     )
+  //     const savedChoice = await this.questionChoiceRepository.save(newChoice);
+  //     questionChoices.push(savedChoice);
+  //   }
+
+  //   this.multipleChoiceRepository.createQueryBuilder().update().set().where
+
+  //   return ;
+  // }
+
+  async findAllBySurvey(surveyId:number): Promise<TextQuestion[]> {
+    const survey = await this.surveyRepository.findOne({where: {id:surveyId}});
+    if (!survey) {
+      throw new NotFoundException(`Survey with ID ${surveyId} not found.`);
+    }
+
+    return this.multipleChoiceRepository.find({where: {survey: survey}});  
   }
 }
