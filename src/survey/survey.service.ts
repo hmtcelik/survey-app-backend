@@ -24,7 +24,7 @@ export class SurveyService {
   findOne(id: number): Promise<Survey> {
     return this.surveyRepository.findOne({
       where: {id: id},
-      relations: ['textQuestions', 'multipleQuestions'],
+      relations: ['textQuestions', 'multipleQuestions', 'multipleQuestions.choices'],
     });  
   }
 
@@ -67,6 +67,49 @@ export class SurveyService {
       .where('id = :id', { id })
       .execute();
   }
+
+  transformSurvey(survey: Survey): any {
+    const transformedQuestions = [];
+  
+    // Transform text questions
+    transformedQuestions.push(
+      ...survey.textQuestions.map((question) => ({
+        id: question.id,
+        question_type: 'text',
+        index: question.index,
+        question: question.question,
+      }))
+    );
+  
+    // Transform multiple choice questions
+    survey.multipleQuestions.forEach((question) => {
+      transformedQuestions.push({
+        id: question.id,
+        question_type: 'multiple-choice',
+        index: question.index,
+        question: question.question,
+        choices: question.choices.map((choice) => ({
+          id: choice.id,
+          choice: choice.choice,
+        })),
+      });
+    });
+  
+    // Sort the transformed questions array by index
+    transformedQuestions.sort((a, b) => a.index - b.index);
+  
+    return {
+      success: true,
+      message: '',
+      data: {
+        id: survey.id,
+        title: survey.title,
+        description: survey.description,
+        questions: transformedQuestions,
+      },
+    };
+  }
+  
 }
 
 
@@ -108,51 +151,47 @@ export class QuestionService {
     return this.textQuestionRepository.save(textQuestion);
   }
 
-  // async createMultpleChoice(question: MultipleChoiceQuestionDto): Promise<MultipleChoiceQuestion> {
-  //   const survey = await this.surveyRepository.findOne({where: {id:question.surveyId}});
-  //   if (!survey) {
-  //     throw new NotFoundException(`Survey with ID ${question.surveyId} not found.`);
-  //   }
-
-  //   // check if index already exist in this survey
-  //   const checkIndexText = await this.textQuestionRepository.findOne({where: {survey:survey, index:question.index}});
-  //   const checkIndexMultipleChoice = await this.multipleChoiceRepository.findOne({where: {survey:survey, index:question.index}});
-  //   if (checkIndexMultipleChoice || checkIndexText) {
-  //     throw new BadRequestException(`The given index already exist.`);
-  //   }
-
-  //   const multipleChoice = this.multipleChoiceRepository.create({
-  //     index: question.index,
-  //     question: question.question,
-  //     survey: survey,
-  //     choices: []
-  //   });
-
-  //   const savedQuestion = this.multipleChoiceRepository.save(multipleChoice);
-
-  //   var questionChoices: QuestionChoice[] = [] 
-  //   for (const questionChoice of question.choices){
-  //     const newChoice = this.questionChoiceRepository.create(
-  //       {
-  //         choice: questionChoice.choice,
-  //         question: savedQuestion
-  //       }
-  //     )
-  //     const savedChoice = await this.questionChoiceRepository.save(newChoice);
-  //     questionChoices.push(savedChoice);
-  //   }
-
-  //   this.multipleChoiceRepository.createQueryBuilder().update().set().where
-
-  //   return ;
-  // }
-
-  async findAllBySurvey(surveyId:number): Promise<TextQuestion[]> {
-    const survey = await this.surveyRepository.findOne({where: {id:surveyId}});
+  async createMultpleChoice(question: MultipleChoiceQuestionDto): Promise<MultipleChoiceQuestion> {
+    const survey = await this.surveyRepository.findOne({where: {id:question.surveyId}});
     if (!survey) {
-      throw new NotFoundException(`Survey with ID ${surveyId} not found.`);
+      throw new NotFoundException(`Survey with ID ${question.surveyId} not found.`);
     }
 
-    return this.multipleChoiceRepository.find({where: {survey: survey}});  
+    // check if index already exist in this survey
+    const checkIndexText = await this.textQuestionRepository.findOne({where: {survey:survey, index:question.index}});
+    const checkIndexMultipleChoice = await this.multipleChoiceRepository.findOne({where: {survey:survey, index:question.index}});
+    if (checkIndexMultipleChoice || checkIndexText) {
+      throw new BadRequestException(`The given index already exist.`);
+    }
+
+    const multipleChoice = this.multipleChoiceRepository.create({
+      index: question.index,
+      question: question.question,
+      survey: survey,
+      choices: []
+    });
+
+    const savedQuestion = await this.multipleChoiceRepository.save(multipleChoice);
+
+    for (const questionChoice of question.choices) {
+      console.log(questionChoice);
+      
+      const newChoice = this.questionChoiceRepository.create({
+        choice: questionChoice,
+        question: savedQuestion
+      });
+      await this.questionChoiceRepository.save(newChoice);
+    }
+
+    return savedQuestion
+  }
+
+  async findTextQuestion(id:number): Promise<TextQuestion> {
+    return await this.multipleChoiceRepository.findOne({where: {id:id}});
+  }
+
+  async findMultipleChoiceQuestion(id:number): Promise<MultipleChoiceQuestion> {
+    return await this.multipleChoiceRepository.findOne({where: {id:id}});
   }
 }
+

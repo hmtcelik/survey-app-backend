@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UseInterceptors } from '@nestjs/common';
 import { Request } from 'express';
-import { SurveyService, TextQuestionService } from './survey.service';
-import { CreateSurveyDto, CreateTextQuestionDto } from '../validation/dto';
+import { SurveyService, QuestionService } from './survey.service';
+import { CreateSurveyDto, CreateTextQuestionDto, MultipleChoiceQuestionDto } from '../validation/dto';
 import { BaseInterceptor } from '../app.interceptor';
 import { Survey, TextQuestion } from './survey.entity';
 
@@ -19,14 +19,14 @@ export class SurveyController {
   @Get(':id')
   async findOne(@Param('id') id: number, @Req() request: Request) {
       const survey: Survey = await this.surveyService.findOne(id)
-      return survey
+      return this.surveyService.transformSurvey(survey)
   }
 
   @Post()
   async create(@Body() createSurveyDto: CreateSurveyDto) {
         const survey = await this.surveyService.create(createSurveyDto);
       if(!survey) {
-        return "error in creating survey"
+        throw new BadRequestException("error in creating survey")
       }
         return "survey created successfully"
   }
@@ -56,21 +56,35 @@ export class SurveyController {
 @UseInterceptors(BaseInterceptor)
 @Controller('question')
 export class QuestionController {
-  constructor(private textQuestionService: TextQuestionService) {}
+  constructor(private questionService: QuestionService) {}
   
-  @Get(':surveyId')
-  async getAllBySurveyId(@Param('surveyId') surveyId:number, @Req() request: Request) {
-      const textQuestions: TextQuestion[] = await this.textQuestionService.findAllBySurvey(surveyId)
-      return textQuestions
+  @Get('text/:id')
+  async getTextQuestion(@Param('surveyId') surveyId:number) {
+      return await this.questionService.findTextQuestion(surveyId)
+  }
+
+  @Get('multiple-choice/:id')
+  async getMultipleChoiceQuestion(@Param('surveyId') surveyId:number) {
+      return await this.questionService.findTextQuestion(surveyId)
   }
 
   @Post('text')
   async createTextQuestion(@Body() createTextQuestionDto: CreateTextQuestionDto) {
-        const textQuestion = await this.textQuestionService.create(createTextQuestionDto);
+      const textQuestion = await this.questionService.createText(createTextQuestionDto);
       if(!textQuestion) {
-        return "error in creating textQuestion"
+        throw new BadRequestException("error in creating textQuestion")
       }
         return "textQuestion created successfully"
   }
 
+  @Post('multiple-choice')
+  async createMultipleChoiceQuestion(@Req() res: Response, @Body() multipleChoiceQuestionDto: MultipleChoiceQuestionDto) {
+      const multipleChoiceQuestion = await this.questionService.createMultpleChoice(multipleChoiceQuestionDto);
+      console.log(multipleChoiceQuestion);
+        
+      if(!multipleChoiceQuestion) {
+        throw new BadRequestException("error in creating multipleChoiceQuestion")
+      }
+        return "multipleChoiceQuestion created successfully"
+  }
 }

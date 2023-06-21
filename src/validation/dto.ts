@@ -40,12 +40,13 @@ export class MultipleChoiceQuestionDto {
 
   @IsNotEmpty()
   @IsArray()
-  choices: ChoiceDto[];
+  choices: string[];
+  // choices: ChoiceDto[];
 }
 
 
-class ChoiceDto{
-  @IsNotEmpty()
-  @IsString()
-  choice: string
-}
+// class ChoiceDto{
+//   @IsNotEmpty()
+//   @IsString()
+//   choice: string
+// }
